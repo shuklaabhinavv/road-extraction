@@ -37,9 +37,7 @@ def notebook(cells: list) -> dict:
 
 
 MKDIRS = "!mkdir -p roadx/data configs\n"
-INITS = (
-    "%%writefile roadx/__init__.py\n__version__ = '0.1.0'\n"
-)
+INITS = "%%writefile roadx/__init__.py\n__version__ = '0.1.0'\n"
 
 
 def prepare_notebook() -> dict:
@@ -54,7 +52,8 @@ def prepare_notebook() -> dict:
             "Fallback: if the Kaggle dataset is unavailable, enable Internet and use the\n"
             "download cell near the end to fetch from the original UofT mirror instead."
         ),
-        code(MKDIRS + INITS),
+        code(MKDIRS),
+        code(INITS),
         code("%%writefile roadx/data/__init__.py\n"),
         writefile_cell("roadx/data/tile.py", SRC / "data" / "tile.py"),
         writefile_cell("roadx/data/download.py", SRC / "data" / "download.py"),
@@ -150,7 +149,8 @@ def train_notebook() -> dict:
             "5. *Save Version -> Save & Run All*. Download `runs/` from the output when done.\n"
         ),
         code("%pip install -q segmentation-models-pytorch albumentations\n"),
-        code(MKDIRS + INITS),
+        code(MKDIRS),
+        code(INITS),
         code("%%writefile roadx/data/__init__.py\n"),
         writefile_cell("roadx/data/dataset.py", SRC / "data" / "dataset.py"),
         writefile_cell("roadx/models.py", SRC / "models.py"),
@@ -215,7 +215,8 @@ def colab_prepare_notebook() -> dict:
             "drive.mount('/content/drive')\n"
             f"!mkdir -p {DRIVE}\n"
         ),
-        code(MKDIRS + INITS),
+        code(MKDIRS),
+        code(INITS),
         code("%%writefile roadx/data/__init__.py\n"),
         writefile_cell("roadx/data/download.py", SRC / "data" / "download.py"),
         writefile_cell("roadx/data/tile.py", SRC / "data" / "tile.py"),
@@ -270,7 +271,8 @@ def colab_train_notebook() -> dict:
             "drive.mount('/content/drive')\n"
         ),
         code("%pip install -q segmentation-models-pytorch albumentations\n"),
-        code(MKDIRS + INITS),
+        code(MKDIRS),
+        code(INITS),
         code("%%writefile roadx/data/__init__.py\n"),
         writefile_cell("roadx/data/dataset.py", SRC / "data" / "dataset.py"),
         writefile_cell("roadx/models.py", SRC / "models.py"),
