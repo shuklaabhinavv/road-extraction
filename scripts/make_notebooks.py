@@ -161,15 +161,16 @@ def train_notebook() -> dict:
         writefile_cell("roadx/train.py", SRC / "train.py"),
         *config_cells,
         code(
-            "from pathlib import Path\n"
+            "import os\n"
             "\n"
             "MODELS = ['unet', 'unetpp']  # session B: ['deeplabv3plus', 'linknet']\n"
             "BATCH_SIZE = 16\n"
             "\n"
-            "candidates = [p for p in Path('/kaggle/input').glob('*/tiles') if (p / 'train' / 'images').is_dir()]\n"
-            "candidates += [p for p in Path('/kaggle/input').glob('*') if (p / 'train' / 'images').is_dir()]\n"
-            "assert candidates, 'tiles dataset not attached — add the prepare notebook output as input'\n"
-            "DATA_DIR = str(candidates[0])\n"
+            "# Kaggle mounts inputs at nested paths (/kaggle/input/datasets/<owner>/<slug>,\n"
+            "# notebook outputs similarly), so search recursively for the tiles folder.\n"
+            "hits = [d for d, _, _ in os.walk('/kaggle/input') if os.path.isdir(os.path.join(d, 'train', 'images'))]\n"
+            "assert hits, 'tiles dataset not attached — add the prepare notebook output as input'\n"
+            "DATA_DIR = hits[0]\n"
             "print('DATA_DIR =', DATA_DIR)\n"
         ),
         code(
