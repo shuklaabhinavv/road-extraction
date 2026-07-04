@@ -36,8 +36,14 @@ def notebook(cells: list) -> dict:
     }
 
 
-MKDIRS = "!mkdir -p roadx/data configs\n"
-INITS = "%%writefile roadx/__init__.py\n__version__ = '0.1.0'\n"
+# One plain-python setup cell: %%writefile needs a non-empty body and must be the
+# first line of a cell, so package dirs and empty __init__ files are made with os.
+SETUP = (
+    "import os; os.makedirs('roadx/data', exist_ok=True); "
+    "os.makedirs('configs', exist_ok=True); "
+    "open('roadx/__init__.py','w').close(); "
+    "open('roadx/data/__init__.py','w').close()\n"
+)
 
 
 def prepare_notebook() -> dict:
@@ -52,9 +58,7 @@ def prepare_notebook() -> dict:
             "Fallback: if the Kaggle dataset is unavailable, enable Internet and use the\n"
             "download cell near the end to fetch from the original UofT mirror instead."
         ),
-        code(MKDIRS),
-        code(INITS),
-        code("%%writefile roadx/data/__init__.py\n"),
+        code(SETUP),
         writefile_cell("roadx/data/tile.py", SRC / "data" / "tile.py"),
         writefile_cell("roadx/data/download.py", SRC / "data" / "download.py"),
         code(
@@ -149,9 +153,7 @@ def train_notebook() -> dict:
             "5. *Save Version -> Save & Run All*. Download `runs/` from the output when done.\n"
         ),
         code("%pip install -q segmentation-models-pytorch albumentations\n"),
-        code(MKDIRS),
-        code(INITS),
-        code("%%writefile roadx/data/__init__.py\n"),
+        code(SETUP),
         writefile_cell("roadx/data/dataset.py", SRC / "data" / "dataset.py"),
         writefile_cell("roadx/models.py", SRC / "models.py"),
         writefile_cell("roadx/losses.py", SRC / "losses.py"),
@@ -215,9 +217,7 @@ def colab_prepare_notebook() -> dict:
             "drive.mount('/content/drive')\n"
             f"!mkdir -p {DRIVE}\n"
         ),
-        code(MKDIRS),
-        code(INITS),
-        code("%%writefile roadx/data/__init__.py\n"),
+        code(SETUP),
         writefile_cell("roadx/data/download.py", SRC / "data" / "download.py"),
         writefile_cell("roadx/data/tile.py", SRC / "data" / "tile.py"),
         code("!python -m roadx.data.download --out /content/raw --all\n"),
@@ -271,9 +271,7 @@ def colab_train_notebook() -> dict:
             "drive.mount('/content/drive')\n"
         ),
         code("%pip install -q segmentation-models-pytorch albumentations\n"),
-        code(MKDIRS),
-        code(INITS),
-        code("%%writefile roadx/data/__init__.py\n"),
+        code(SETUP),
         writefile_cell("roadx/data/dataset.py", SRC / "data" / "dataset.py"),
         writefile_cell("roadx/models.py", SRC / "models.py"),
         writefile_cell("roadx/losses.py", SRC / "losses.py"),
