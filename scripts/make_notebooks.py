@@ -198,9 +198,125 @@ def train_notebook() -> dict:
     return notebook(cells)
 
 
+DRIVE = "/content/drive/MyDrive/roadx"
+
+
+def colab_prepare_notebook() -> dict:
+    cells = [
+        md(
+            "# Massachusetts Roads — prepare 512x512 tiles (Colab)\n\n"
+            "Run once. No GPU needed. Downloads the full dataset (~8 GB) from the original\n"
+            "UofT mirror, tiles it, and stores `tiles.zip` in your Google Drive under\n"
+            "`MyDrive/roadx/` (~4 GB) so training sessions can reuse it.\n\n"
+            "*Runtime -> Run all*, approve the Drive permission popup, then wait (~30-45 min)."
+        ),
+        code(
+            "from google.colab import drive\n"
+            "drive.mount('/content/drive')\n"
+            f"!mkdir -p {DRIVE}\n"
+        ),
+        code(MKDIRS + INITS),
+        code("%%writefile roadx/data/__init__.py\n"),
+        writefile_cell("roadx/data/download.py", SRC / "data" / "download.py"),
+        writefile_cell("roadx/data/tile.py", SRC / "data" / "tile.py"),
+        code("!python -m roadx.data.download --out /content/raw --all\n"),
+        code("!python -m roadx.data.tile --raw /content/raw --out /content/tiles\n"),
+        code(
+            "from pathlib import Path\n"
+            "import matplotlib.pyplot as plt\n"
+            "from PIL import Image\n"
+            "\n"
+            "tiles = Path('/content/tiles')\n"
+            "for split in ('train', 'valid', 'test'):\n"
+            "    n = len(list((tiles / split / 'images').glob('*.png')))\n"
+            "    print(f'{split}: {n} tiles')\n"
+            "\n"
+            "sample = sorted((tiles / 'train' / 'images').glob('*.png'))[0]\n"
+            "fig, ax = plt.subplots(1, 2, figsize=(10, 5))\n"
+            "ax[0].imshow(Image.open(sample)); ax[0].set_title('image'); ax[0].axis('off')\n"
+            "ax[1].imshow(Image.open(tiles / 'train' / 'masks' / sample.name), cmap='gray')\n"
+            "ax[1].set_title('mask'); ax[1].axis('off')\n"
+            "plt.show()\n"
+        ),
+        code(
+            "!cd /content && zip -qr tiles.zip tiles\n"
+            f"!cp /content/tiles.zip {DRIVE}/tiles.zip\n"
+            f"!ls -lh {DRIVE}/\n"
+            "print('done — tiles.zip is in Drive, you can close this session')\n"
+        ),
+    ]
+    return notebook(cells)
+
+
+def colab_train_notebook() -> dict:
+    config_cells = [
+        writefile_cell(f"configs/{name}.yaml", ROOT / "configs" / f"{name}.yaml")
+        for name in ("unet", "unetpp", "deeplabv3plus", "linknet")
+    ]
+    cells = [
+        md(
+            "# Road extraction — train one model per session (Colab)\n\n"
+            "**Every session:**\n"
+            "1. *Runtime -> Change runtime type -> T4 GPU*.\n"
+            "2. Set `MODEL` in the parameters cell: run this notebook 4 times, once each with\n"
+            "   `unet`, `unetpp`, `deeplabv3plus`, `linknet` (~2.5-3 h per model).\n"
+            "3. *Runtime -> Run all*, approve the Drive popup.\n\n"
+            "Checkpoints and logs stream straight to `MyDrive/roadx/runs/<model>/` during\n"
+            "training, so a disconnect never loses a completed epoch's best checkpoint.\n"
+            "Requires `tiles.zip` in `MyDrive/roadx/` (from the prepare notebook)."
+        ),
+        code(
+            "from google.colab import drive\n"
+            "drive.mount('/content/drive')\n"
+        ),
+        code("%pip install -q segmentation-models-pytorch albumentations\n"),
+        code(MKDIRS + INITS),
+        code("%%writefile roadx/data/__init__.py\n"),
+        writefile_cell("roadx/data/dataset.py", SRC / "data" / "dataset.py"),
+        writefile_cell("roadx/models.py", SRC / "models.py"),
+        writefile_cell("roadx/losses.py", SRC / "losses.py"),
+        writefile_cell("roadx/metrics.py", SRC / "metrics.py"),
+        writefile_cell("roadx/train.py", SRC / "train.py"),
+        *config_cells,
+        code(
+            "MODEL = 'unet'  # <-- change per session: unet | unetpp | deeplabv3plus | linknet\n"
+            "BATCH_SIZE = 16\n"
+            "\n"
+            "import os\n"
+            f"assert os.path.exists('{DRIVE}/tiles.zip'), 'run the prepare notebook first'\n"
+            "if not os.path.isdir('/content/tiles'):\n"
+            f"    !unzip -q {DRIVE}/tiles.zip -d /content\n"
+            "!ls /content/tiles\n"
+        ),
+        code(
+            "import torch\n"
+            "assert torch.cuda.is_available(), 'enable the GPU runtime first'\n"
+            "print(torch.cuda.get_device_name(0))\n"
+            "\n"
+            "!python -m roadx.train --model {MODEL} --data-dir /content/tiles "
+            f"--batch-size {{BATCH_SIZE}} --out {DRIVE}/runs\n"
+        ),
+        code(
+            "import pandas as pd\n"
+            "import matplotlib.pyplot as plt\n"
+            "from pathlib import Path\n"
+            "\n"
+            f"for run in sorted(Path('{DRIVE}/runs').glob('*/log.csv')):\n"
+            "    df = pd.read_csv(run)\n"
+            "    plt.plot(df['epoch'], df['val_iou'], label=run.parent.name)\n"
+            "    print(run.parent.name, 'best val IoU:', df['val_iou'].max())\n"
+            "plt.xlabel('epoch'); plt.ylabel('val IoU'); plt.legend(); plt.grid(alpha=0.3)\n"
+            "plt.title('Validation IoU'); plt.show()\n"
+        ),
+    ]
+    return notebook(cells)
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     for name, nb in (
+        ("colab_1_prepare_data.ipynb", colab_prepare_notebook()),
+        ("colab_2_train.ipynb", colab_train_notebook()),
         ("kaggle_1_prepare_data.ipynb", prepare_notebook()),
         ("kaggle_2_train.ipynb", train_notebook()),
     ):
