@@ -1,0 +1,11 @@
+model: unetpp
+encoder: resnet34
+encoder_weights: imagenet
+img_size: 512
+batch_size: 8
+epochs: 30
+lr: 3.0e-4
+weight_decay: 1.0e-4
+num_workers: 4
+seed: 42
+data_dir: data/tiles
