@@ -1,0 +1,6 @@
+{
+  "correctness_vs_osm": 0.9852671351768857,
+  "completeness_vs_osm": 0.3195850985839517,
+  "pred_road_px": 202201,
+  "osm_road_px": 623377
+}
