@@ -4,7 +4,7 @@ __pycache__/
 .DS_Store
 data/
 runs/
-results/
+results/sanity/
 *.pt
 *.pth
 .ipynb_checkpoints/
