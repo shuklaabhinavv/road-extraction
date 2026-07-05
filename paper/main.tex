@@ -261,14 +261,20 @@ U-Net++      & \textbf{0.654} & \textbf{0.791} & \textbf{0.808} & \textbf{0.774}
 U-Net        & 0.650 & 0.788 & 0.807 & 0.770 & 24.4 & 110.5 \\
 LinkNet      & 0.649 & 0.787 & 0.803 & 0.771 & \textbf{21.8} & \textbf{105.0} \\
 DeepLabV3+   & 0.642 & 0.782 & 0.798 & 0.766 & 22.4 & 117.5 \\
+\midrule
+Ensemble ($\times$4) & 0.656 & 0.792 & 0.814 & 0.772 & 94.7 & 488.3 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-U-Net++ attains the best accuracy on every metric, supporting the hypothesis
-that its nested skip pathways reduce the encoder--decoder semantic gap and
-benefit thin-structure localization---but at nearly double the inference
-latency of the alternatives. LinkNet is the clear efficiency choice: within
+U-Net++ attains the best single-model accuracy on every metric, supporting the
+hypothesis that its nested skip pathways reduce the encoder--decoder semantic
+gap and benefit thin-structure localization---but at nearly double the
+inference latency of the alternatives. Averaging the probability maps of all
+four models yields only a further $+0.002$ IoU at $4\times$ the cost,
+indicating that under an identical training protocol the architectures make
+largely \emph{correlated} errors: what one decoder misses, the others tend to
+miss as well. LinkNet is the clear efficiency choice: within
 $0.005$ IoU of the leader while using 16\% fewer parameters and running
 $1.9\times$ faster than U-Net++. DeepLabV3+, whose atrous pyramid excels on
 large-object benchmarks, trails here; aggressive context aggregation appears
@@ -307,6 +313,27 @@ recover the interchange and arterial roads; disagreements concentrate in
 tree-occluded residential streets---the same regions where the models'
 recall deficit originates.
 
+\subsection{Failure Cases}
+Fig.~\ref{fig:failures} shows the two lowest-IoU test images for the best
+model, with errors decomposed into hits, missed roads, and false detections.
+The failure modes are systematic rather than random: the worst case
+(IoU $0.402$) is a forested region whose ground truth includes roads running
+\emph{under} tree canopy---invisible in the imagery and arguably unknowable
+from pixels alone---while the second (IoU $0.437$) is a dense historic town
+core whose narrow, tightly packed streets fall below the effective resolution
+of the model. Both cases inflate missed-road counts far more than false
+detections, consistent with the precision-over-recall behavior observed in
+Table~\ref{tab:comparison}.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/failure_cases_unetpp.png}
+\caption{Worst-case test images for U-Net++. Right column: green = correctly
+detected road, red = missed road, blue = false detection. Failures concentrate
+in canopy-occluded roads (top) and very dense historic street grids (bottom).}
+\label{fig:failures}
+\end{figure}
+
 \subsection{Geo-Referenced Output and OSM Agreement}
 Applying the geo-referencing stage to the U-Net++ prediction of the
 Fig.~\ref{fig:qualitative} scene ($42.321^{\circ}$--$42.335^{\circ}$\,N,
@@ -339,6 +366,18 @@ explained by OSM footpaths, driveways, and service ways that are absent from
 both the imagery-derived annotation and the prediction, not by model failure.
 By this measure, the automatically extracted, geo-referenced network is as
 consistent with OSM as the manual annotation it was trained on.
+
+\subsection{Limitations}
+Three limitations qualify these results. First, each architecture was trained
+once with a fixed seed; given the narrow accuracy band, run-to-run variance
+could shift the single-model ranking, and the comparison is therefore best
+read as ``all four are competitive, with a consistent efficiency ordering''
+rather than as a strict hierarchy. Second, pixel-wise metrics do not capture
+topological quality: a one-pixel gap that severs a route costs almost no IoU
+but matters greatly for routing applications. Third, the OSM completeness
+measure is bounded by systematic differences between OSM's definition of a
+road and what is visible in 1\,m aerial imagery, which is why the human
+ground truth serves as the appropriate reference point.
 
 \section{Conclusion}
 This paper presented a controlled comparison of four semantic segmentation

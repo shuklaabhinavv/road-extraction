@@ -70,13 +70,77 @@ def qualitative_figure(models: dict, sat_path: Path, map_path: Path, out: Path, 
     print(f"wrote {dest}")
 
 
+def image_iou(model, sat_path: Path, map_path: Path, device) -> float:
+    img = np.asarray(Image.open(sat_path).convert("RGB"))
+    gt = np.asarray(Image.open(map_path).convert("L")) > 127
+    pred = predict_image(model, img, device) > 0.5
+    inter = (pred & gt).sum()
+    union = (pred | gt).sum()
+    return float(inter / (union + 1e-7))
+
+
+def failure_figure(model, name: str, sat_dir: Path, map_dir: Path, out: Path,
+                   device, n_worst: int = 2) -> None:
+    """Rank test images by IoU and render the worst cases with error maps."""
+    pairs = []
+    for sat_path in sorted(sat_dir.iterdir()):
+        map_path = next(
+            (map_dir / f"{sat_path.stem}{ext}" for ext in (".tif", ".tiff", ".png")
+             if (map_dir / f"{sat_path.stem}{ext}").exists()), None)
+        if map_path is None:
+            continue
+        iou = image_iou(model, sat_path, map_path, device)
+        pairs.append((iou, sat_path, map_path))
+        print(f"  {sat_path.stem}: IoU {iou:.3f}")
+    pairs.sort(key=lambda t: t[0])
+
+    worst = pairs[:n_worst]
+    fig, axes = plt.subplots(n_worst, 3, figsize=(10.5, 3.6 * n_worst))
+    axes = np.atleast_2d(axes)
+    for row, (iou, sat_path, map_path) in enumerate(worst):
+        img = np.asarray(Image.open(sat_path).convert("RGB"))
+        gt = np.asarray(Image.open(map_path).convert("L")) > 127
+        pred = predict_image(model, img, device) > 0.5
+        # error map: green = hit, red = missed road (FN), blue = false road (FP)
+        err = np.zeros((*gt.shape, 3), dtype=np.uint8)
+        err[gt & pred] = (46, 125, 50)
+        err[gt & ~pred] = (198, 40, 40)
+        err[~gt & pred] = (21, 101, 192)
+        axes[row, 0].imshow(img)
+        axes[row, 0].set_title(f"Input (IoU {iou:.3f})", fontsize=10)
+        axes[row, 1].imshow(gt, cmap="gray")
+        axes[row, 1].set_title("Ground truth", fontsize=10)
+        axes[row, 2].imshow(err)
+        axes[row, 2].set_title("Hit / missed / false", fontsize=10)
+        for ax in axes[row]:
+            ax.axis("off")
+    fig.tight_layout()
+    dest = out / f"failure_cases_{name}.png"
+    fig.savefig(dest, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {dest}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data", type=Path, default=Path("data"))
     p.add_argument("--runs", type=Path, default=Path("runs"))
     p.add_argument("--out", type=Path, default=Path("results/figures"))
     p.add_argument("--n-images", type=int, default=3)
+    p.add_argument("--failure", action="store_true",
+                   help="only render the failure-cases figure for the best model")
     args = p.parse_args()
+
+    if args.failure:
+        args.out.mkdir(parents=True, exist_ok=True)
+        device = pick_device()
+        ckpt = torch.load(args.runs / "unetpp" / "best.pt", map_location="cpu")
+        m = build_model(ckpt["model"], ckpt["encoder"], encoder_weights=None)
+        m.load_state_dict(ckpt["state_dict"])
+        m.to(device).eval()
+        failure_figure(m, "unetpp", args.data / "raw" / "test" / "sat",
+                       args.data / "raw" / "test" / "map", args.out, device)
+        return
 
     args.out.mkdir(parents=True, exist_ok=True)
     curves_figure(args.runs, args.out)

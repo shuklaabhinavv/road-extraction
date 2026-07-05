@@ -45,11 +45,48 @@ def evaluate_checkpoint(ckpt_path: Path, data_dir: Path, device: torch.device, b
     return out
 
 
+@torch.no_grad()
+def evaluate_ensemble(runs: Path, data_dir: Path, device: torch.device, batch_size: int = 8) -> dict:
+    """Average the probability maps of every trained model, then threshold."""
+    models = []
+    total_params = 0.0
+    for ckpt_path in sorted(runs.glob("*/best.pt")):
+        ckpt = torch.load(ckpt_path, map_location="cpu")
+        m = build_model(ckpt["model"], ckpt["encoder"], encoder_weights=None)
+        m.load_state_dict(ckpt["state_dict"])
+        m.to(device).eval()
+        models.append(m)
+        total_params += sum(p.numel() for p in m.parameters())
+
+    ds = RoadDataset(data_dir, "test", train=False)
+    dl = DataLoader(ds, batch_size, shuffle=False, num_workers=4)
+
+    metrics = SegMetrics()
+    n_imgs = 0
+    t0 = time.time()
+    for img, msk in dl:
+        img, msk = img.to(device), msk.to(device)
+        prob = torch.stack([torch.sigmoid(m(img)) for m in models]).mean(0)
+        # SegMetrics thresholds sigmoid(logits); invert the mean probability
+        logits = torch.logit(prob.clamp(1e-6, 1 - 1e-6))
+        metrics.update(logits, msk)
+        n_imgs += img.size(0)
+    elapsed = time.time() - t0
+
+    out = metrics.compute()
+    out["model"] = "ensemble"
+    out["params_m"] = total_params / 1e6
+    out["ms_per_tile"] = elapsed / n_imgs * 1000
+    out["best_epoch"] = None
+    return out
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data", type=Path, default=Path("data/tiles"))
     p.add_argument("--runs", type=Path, default=Path("runs"))
     p.add_argument("--out", type=Path, default=Path("results"))
+    p.add_argument("--ensemble", action="store_true", help="also score the mean-probability ensemble")
     args = p.parse_args()
 
     device = pick_device()
@@ -60,6 +97,10 @@ def main() -> None:
 
     if not rows:
         raise SystemExit(f"no checkpoints found under {args.runs}/*/best.pt")
+
+    if args.ensemble and len(rows) > 1:
+        print("evaluating ensemble (mean of probabilities) ...")
+        rows.append(evaluate_ensemble(args.runs, args.data, device))
 
     df = pd.DataFrame(rows)[
         ["model", "iou", "f1", "precision", "recall", "params_m", "ms_per_tile", "best_epoch"]
