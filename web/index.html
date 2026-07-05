@@ -39,17 +39,29 @@
     font-family: "Source Serif 4", Georgia, serif;
     font-size: clamp(34px, 5vw, 48px); font-weight: 600;
     line-height: 1.12; letter-spacing: -0.015em;
-    margin: 26px 0 14px; max-width: 17ch;
+    margin: 26px 0 14px; max-width: 20ch;
   }
   h1 em { font-style: italic; color: var(--clay); }
-  .lede { color: var(--muted); max-width: 58ch; font-size: 17px; }
+  .lede { color: var(--muted); max-width: 60ch; font-size: 17px; }
 
   .card {
     background: var(--card); border: 1px solid var(--line);
     border-radius: var(--radius); box-shadow: 0 1px 2px rgba(31,30,27,.04);
   }
+  .studio { margin-top: 36px; padding: 24px; }
 
-  .studio { margin-top: 40px; padding: 28px; }
+  .modes { display: inline-flex; background: var(--wash); border: 1px solid var(--line);
+           border-radius: 999px; padding: 3px; margin-bottom: 20px; }
+  .modes button {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    font: 600 14px "Inter", sans-serif; padding: 8px 20px; border-radius: 999px;
+    transition: all .12s ease; white-space: nowrap;
+  }
+  .modes button.on { background: var(--card); color: var(--ink);
+                     box-shadow: 0 1px 3px rgba(31,30,27,.10); }
+
+  #bigmap { height: 480px; border-radius: 12px; border: 1px solid var(--line); }
+  .maphint { font-size: 13px; color: var(--muted); margin-top: 10px; }
 
   #drop {
     border: 1.5px dashed var(--line-strong); border-radius: 12px;
@@ -65,7 +77,7 @@
            font-weight: 500; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-end;
-              margin-top: 24px; }
+              margin-top: 22px; }
   .field label { display: block; font-size: 12px; font-weight: 600;
                  letter-spacing: .06em; text-transform: uppercase;
                  color: var(--muted); margin-bottom: 8px; }
@@ -87,7 +99,7 @@
   .thresh { display: flex; align-items: center; gap: 10px; height: 36px; }
   input[type=range] { accent-color: var(--clay); width: 130px; }
   #tval { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px;
-          width: 30px; }
+          width: 34px; }
 
   .go {
     margin-left: auto; border: 0; cursor: pointer;
@@ -99,13 +111,13 @@
   .go:active:not(:disabled) { transform: scale(.98); }
   .go:disabled { opacity: .4; cursor: default; }
 
-  .status { margin-top: 16px; font-size: 14px; color: var(--muted);
+  .status { margin-top: 14px; font-size: 14px; color: var(--muted);
             min-height: 22px; }
   .status .err { color: #A8342A; }
   .pulse { display: inline-block; animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .35; } }
 
-  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0 14px; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 26px 0 14px; }
   .chip { background: var(--wash); border: 1px solid var(--line);
           border-radius: 999px; padding: 6px 14px; font-size: 13.5px;
           color: var(--ink); }
@@ -117,37 +129,51 @@
   .grid img { width: 100%; display: block; }
   figcaption { font-size: 13.5px; color: var(--muted); padding: 12px 16px;
                border-top: 1px solid var(--line); }
-
   .map-card { margin-top: 18px; overflow: hidden; display: none; }
-  #map { height: 480px; }
+  #map { height: 460px; }
   .map-card figcaption { background: var(--card); }
 
   .rule { border: 0; border-top: 1px solid var(--line); margin: 48px 0 20px; }
   footer { color: var(--muted); font-size: 13.5px; display: flex;
            justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-  footer a { color: var(--clay-dark); text-decoration: none; border-bottom: 1px solid transparent; }
+  footer a { color: var(--clay-dark); text-decoration: none;
+             border-bottom: 1px solid transparent; }
   footer a:hover { border-color: var(--clay-dark); }
 
   @media (max-width: 720px) {
     .grid { grid-template-columns: 1fr; }
     .go { margin-left: 0; width: 100%; }
+    #bigmap { height: 380px; }
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="brand">roadx</div>
-  <h1>Roads, extracted <em>from the sky</em>.</h1>
-  <p class="lede">Four deep segmentation models — U-Net, U-Net++, DeepLabV3+ and
-    LinkNet — trained identically on the Massachusetts Roads Dataset. Drop in an
-    aerial image; if it is a GeoTIFF, the detected roads are placed on a live map
-    at their true coordinates.</p>
+  <h1>Roads, extracted <em>from the sky</em> — anywhere.</h1>
+  <p class="lede">Pan the map to any place on Earth and extract its road network from
+    live satellite imagery, or upload your own aerial photo. Four segmentation models,
+    trained identically on the Massachusetts Roads Dataset.</p>
 
   <div class="card studio">
-    <div id="drop">
-      <div class="big">Drop an aerial image</div>
-      <div class="small">or click to browse &nbsp;·&nbsp; .tif · .png · .jpg &nbsp;·&nbsp; up to 3000 × 3000 px</div>
-      <div id="fname"></div>
+    <div class="modes" id="modes">
+      <button class="on" data-mode="map">Anywhere on Earth</button>
+      <button data-mode="upload">Upload an image</button>
+    </div>
+
+    <div id="mapmode">
+      <div id="bigmap"></div>
+      <div class="maphint">Zoom to street level (the button enables when the view is
+        small enough), then extract. Roads are detected on live Esri satellite imagery
+        at ~1 m/pixel — the resolution the models were trained on.</div>
+    </div>
+
+    <div id="uploadmode" style="display:none">
+      <div id="drop">
+        <div class="big">Drop an aerial image</div>
+        <div class="small">or click to browse &nbsp;·&nbsp; .tif · .png · .jpg &nbsp;·&nbsp; up to 3000 × 3000 px</div>
+        <div id="fname"></div>
+      </div>
     </div>
 
     <div class="controls">
@@ -163,14 +189,14 @@
           <span id="tval">0.50</span>
         </div>
       </div>
-      <button class="go" id="go" disabled>Extract roads</button>
+      <button class="go" id="go">Extract roads in this view</button>
     </div>
     <div class="status" id="status"></div>
   </div>
 
   <section class="results" id="results">
     <div class="chips" id="chips"></div>
-    <div class="grid">
+    <div class="grid" id="imggrid">
       <figure class="card"><img id="overlay" alt="prediction overlay">
         <figcaption>Prediction overlay — detected roads in red</figcaption></figure>
       <figure class="card"><img id="mask" alt="binary road mask">
@@ -192,21 +218,18 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const NAMES = {unet: "U-Net", unetpp: "U-Net++", deeplabv3plus: "DeepLabV3+", linknet: "LinkNet"};
-const drop = document.getElementById('drop');
-const fileIn = Object.assign(document.createElement('input'),
-  {type: 'file', accept: '.tif,.tiff,.png,.jpg,.jpeg'});
-const go = document.getElementById('go');
-const status = document.getElementById('status');
-const seg = document.getElementById('seg');
-let file = null, model = 'unetpp', map = null, layer = null, metrics = {};
+const $ = id => document.getElementById(id);
+let mode = 'map', file = null, model = 'unetpp', metrics = {};
+let resultMap = null, resultLayer = null;   // upload-mode result map
+let bigmap = null, roadsLayer = null;       // anywhere-mode map
 
+// ---------- shared controls ----------
 function showBench() {
   const m = metrics[model];
-  document.getElementById('bench').innerHTML = m
+  $('bench').innerHTML = m
     ? `benchmark on 441 held-out test tiles: IoU <b>${m.test_iou.toFixed(3)}</b> · F₁ <b>${m.test_f1.toFixed(3)}</b>`
     : '';
 }
-
 fetch('/api/models').then(r => r.json()).then(d => {
   metrics = d.metrics || {};
   for (const m of d.models) {
@@ -216,79 +239,153 @@ fetch('/api/models').then(r => r.json()).then(d => {
     if (m === model) b.classList.add('on');
     b.onclick = () => {
       model = m;
-      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.m === m));
+      $('seg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.m === m));
       showBench();
     };
-    seg.appendChild(b);
+    $('seg').appendChild(b);
   }
   showBench();
 });
+$('thresh').oninput = () => $('tval').textContent = Number($('thresh').value).toFixed(2);
 
-const thresh = document.getElementById('thresh');
-thresh.oninput = () => document.getElementById('tval').textContent =
-  Number(thresh.value).toFixed(2);
+// ---------- mode switch ----------
+$('modes').querySelectorAll('button').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  $('modes').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  $('mapmode').style.display = mode === 'map' ? 'block' : 'none';
+  $('uploadmode').style.display = mode === 'upload' ? 'block' : 'none';
+  $('results').style.display = 'none';
+  $('status').textContent = '';
+  updateGo();
+  if (mode === 'map') setTimeout(() => bigmap.invalidateSize(), 60);
+});
 
+function updateGo() {
+  if (mode === 'map') {
+    $('go').textContent = 'Extract roads in this view';
+    const z = bigmap ? bigmap.getZoom() : 0;
+    $('go').disabled = z < 14;
+    $('status').textContent = z < 14 ? 'Zoom in closer to enable extraction.' : '';
+  } else {
+    $('go').textContent = 'Extract roads';
+    $('go').disabled = !file;
+  }
+}
+
+// ---------- anywhere-mode map ----------
+const esri = () => L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {attribution: 'Imagery &copy; Esri', maxZoom: 19});
+const osm = () => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {attribution: '&copy; OpenStreetMap contributors', maxZoom: 19});
+
+bigmap = L.map('bigmap', {layers: [esri()]}).setView([42.3395, -71.1183], 15);
+L.control.layers({'Satellite': bigmap._layers[Object.keys(bigmap._layers)[0]], 'Street map': osm()},
+                 null, {position: 'topright'}).addTo(bigmap);
+bigmap.on('zoomend moveend', updateGo);
+updateGo();
+
+async function extractRegion() {
+  const b = bigmap.getBounds();
+  const body = {west: b.getWest(), south: b.getSouth(), east: b.getEast(),
+                north: b.getNorth(), model, threshold: Number($('thresh').value)};
+  $('go').disabled = true;
+  $('status').innerHTML = `<span class="pulse">Fetching satellite imagery &amp; running ${NAMES[model]}…</span>`;
+  const t0 = performance.now();
+  try {
+    const r = await fetch('/api/extract_region', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)});
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    if (roadsLayer) bigmap.removeLayer(roadsLayer);
+    roadsLayer = L.geoJSON(d.geojson,
+      {style: {color: '#C15F3C', weight: 1.5, fillColor: '#C15F3C', fillOpacity: .5}}).addTo(bigmap);
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    const m = metrics[d.model];
+    $('chips').innerHTML =
+      `<span class="chip"><b>${NAMES[d.model]}</b></span>` +
+      `<span class="chip"><b>${(d.road_fraction * 100).toFixed(1)}%</b>&nbsp;road pixels</span>` +
+      `<span class="chip">${d.size_px[0]}×${d.size_px[1]} px @ ${d.resolution_m} m/px</span>` +
+      `<span class="chip">${secs}s on-device</span>` +
+      (m ? `<span class="chip">benchmark IoU <b>${m.test_iou.toFixed(3)}</b></span>` : '');
+    $('imggrid').style.display = 'none';
+    $('mapcard').style.display = 'none';
+    $('results').style.display = 'block';
+    $('status').textContent = 'Roads drawn on the map above. Toggle to “Street map” to compare against OSM.';
+  } catch (err) {
+    $('status').innerHTML = `<span class="err">${err.message}</span>`;
+  } finally {
+    updateGo();
+  }
+}
+
+// ---------- upload mode ----------
+const fileIn = Object.assign(document.createElement('input'),
+  {type: 'file', accept: '.tif,.tiff,.png,.jpg,.jpeg'});
 function setFile(f) {
   file = f;
-  document.getElementById('fname').textContent = f ? f.name : '';
-  go.disabled = !f;
+  $('fname').textContent = f ? f.name : '';
+  updateGo();
 }
-drop.onclick = () => fileIn.click();
+$('drop').onclick = () => fileIn.click();
 fileIn.onchange = () => setFile(fileIn.files[0]);
-drop.ondragover = e => { e.preventDefault(); drop.classList.add('hover'); };
-drop.ondragleave = () => drop.classList.remove('hover');
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hover');
-                     setFile(e.dataTransfer.files[0]); };
+$('drop').ondragover = e => { e.preventDefault(); $('drop').classList.add('hover'); };
+$('drop').ondragleave = () => $('drop').classList.remove('hover');
+$('drop').ondrop = e => { e.preventDefault(); $('drop').classList.remove('hover');
+                          setFile(e.dataTransfer.files[0]); };
 
-go.onclick = async () => {
+async function extractUpload() {
   const fd = new FormData();
   fd.append('file', file);
   fd.append('model', model);
-  fd.append('threshold', thresh.value);
-  go.disabled = true;
-  status.innerHTML = '<span class="pulse">Running ' + (NAMES[model] || model) + '…</span>';
+  fd.append('threshold', $('thresh').value);
+  $('go').disabled = true;
+  $('status').innerHTML = `<span class="pulse">Running ${NAMES[model]}…</span>`;
   const t0 = performance.now();
   try {
     const r = await fetch('/api/predict', {method: 'POST', body: fd});
     const d = await r.json();
     if (d.error) throw new Error(d.error);
     const secs = ((performance.now() - t0) / 1000).toFixed(1);
-    document.getElementById('overlay').src = 'data:image/png;base64,' + d.overlay_png;
-    document.getElementById('mask').src = 'data:image/png;base64,' + d.mask_png;
-    document.getElementById('chips').innerHTML =
-      `<span class="chip"><b>${NAMES[d.model] || d.model}</b></span>` +
+    $('overlay').src = 'data:image/png;base64,' + d.overlay_png;
+    $('mask').src = 'data:image/png;base64,' + d.mask_png;
+    $('chips').innerHTML =
+      `<span class="chip"><b>${NAMES[d.model]}</b></span>` +
       `<span class="chip"><b>${(d.road_fraction * 100).toFixed(1)}%</b>&nbsp;road pixels</span>` +
       `<span class="chip">${secs}s on-device</span>` +
       (d.accuracy ? `<span class="chip">IoU vs ground truth <b>${d.accuracy.iou.toFixed(3)}</b></span>` +
                     `<span class="chip">F₁ <b>${d.accuracy.f1.toFixed(3)}</b></span>` : '') +
       (d.bounds_wgs84 ? `<span class="chip">georeferenced ✓</span>` : '');
-    document.getElementById('results').style.display = 'block';
-    status.textContent = '';
-    showMap(d);
-    document.getElementById('results').scrollIntoView({behavior: 'smooth'});
+    $('imggrid').style.display = 'grid';
+    $('results').style.display = 'block';
+    $('status').textContent = '';
+    showUploadMap(d);
+    $('results').scrollIntoView({behavior: 'smooth'});
   } catch (err) {
-    status.innerHTML = `<span class="err">${err.message}</span>`;
+    $('status').innerHTML = `<span class="err">${err.message}</span>`;
   } finally {
-    go.disabled = false;
+    updateGo();
   }
-};
+}
 
-function showMap(d) {
-  const cardEl = document.getElementById('mapcard');
+function showUploadMap(d) {
+  const cardEl = $('mapcard');
   if (!d.bounds_wgs84) { cardEl.style.display = 'none'; return; }
   cardEl.style.display = 'block';
   const [w, s, e, n] = d.bounds_wgs84;
-  if (!map) {
-    map = L.map('map');
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-      {attribution: '&copy; OpenStreetMap contributors'}).addTo(map);
+  if (!resultMap) {
+    resultMap = L.map('map');
+    osm().addTo(resultMap);
   }
-  if (layer) map.removeLayer(layer);
-  layer = L.geoJSON(d.geojson,
-    {style: {color: '#C15F3C', weight: 1.5, fillColor: '#C15F3C', fillOpacity: .45}}).addTo(map);
-  map.fitBounds([[s, w], [n, e]]);
-  setTimeout(() => map.invalidateSize(), 120);
+  if (resultLayer) resultMap.removeLayer(resultLayer);
+  resultLayer = L.geoJSON(d.geojson,
+    {style: {color: '#C15F3C', weight: 1.5, fillColor: '#C15F3C', fillOpacity: .45}}).addTo(resultMap);
+  resultMap.fitBounds([[s, w], [n, e]]);
+  setTimeout(() => resultMap.invalidateSize(), 120);
 }
+
+$('go').onclick = () => mode === 'map' ? extractRegion() : extractUpload();
 </script>
 </body>
 </html>
