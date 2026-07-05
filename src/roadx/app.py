@@ -25,7 +25,16 @@ from roadx.predict import overlay, predict_image
 ROOT = Path(__file__).resolve().parents[2]
 WEB = ROOT / "web"
 RUNS = ROOT / "runs"
+DATA = ROOT / "data" / "raw"
+RESULTS = ROOT / "results" / "comparison.csv"
 MAX_SIDE = 3000  # guardrail for huge uploads
+
+# friendly demo filenames -> dataset stems (for ground-truth lookup)
+STEM_ALIASES = {
+    "roadx-test-newton": "22078975_15",
+    "roadx-test-highway": "10378780_15",
+    "roadx-test-suburb": "26878690_15",
+}
 
 app = FastAPI(title="roadx demo")
 device = pick_device()
@@ -75,10 +84,44 @@ def index():
     return FileResponse(WEB / "index.html")
 
 
+def find_ground_truth(filename: str) -> Path | None:
+    stem = Path(filename).stem
+    stem = STEM_ALIASES.get(stem, stem)
+    for split in ("test", "valid", "train"):
+        for ext in (".tif", ".tiff", ".png"):
+            cand = DATA / split / "map" / f"{stem}{ext}"
+            if cand.exists():
+                return cand
+    return None
+
+
+def gt_metrics(mask: np.ndarray, gt_path: Path) -> dict | None:
+    gt = np.asarray(Image.open(gt_path).convert("L")) > 127
+    if gt.shape != mask.shape:
+        return None
+    tp = float((mask & gt).sum())
+    fp = float((mask & ~gt).sum())
+    fn = float((~mask & gt).sum())
+    eps = 1e-7
+    return {
+        "iou": tp / (tp + fp + fn + eps),
+        "f1": 2 * tp / (2 * tp + fp + fn + eps),
+    }
+
+
 @app.get("/api/models")
 def models():
     available = sorted(p.parent.name for p in RUNS.glob("*/best.pt"))
-    return {"models": available, "device": device.type}
+    metrics = {}
+    if RESULTS.exists():
+        import csv
+        with open(RESULTS) as f:
+            for row in csv.DictReader(f):
+                metrics[row["model"]] = {
+                    "test_iou": round(float(row["iou"]), 3),
+                    "test_f1": round(float(row["f1"]), 3),
+                }
+    return {"models": available, "device": device.type, "metrics": metrics}
 
 
 @app.post("/api/predict")
@@ -97,6 +140,9 @@ async def predict(file: UploadFile = File(...), model: str = Form("unetpp"),
     mask = prob > threshold
     bounds, gj = try_georef(raw, mask)
 
+    gt_path = find_ground_truth(file.filename or "")
+    accuracy = gt_metrics(mask, gt_path) if gt_path else None
+
     return {
         "model": model,
         "road_fraction": float(mask.mean()),
@@ -104,6 +150,7 @@ async def predict(file: UploadFile = File(...), model: str = Form("unetpp"),
         "mask_png": png_b64((mask * 255).astype(np.uint8)),
         "bounds_wgs84": bounds,
         "geojson": gj,
+        "accuracy": accuracy,
     }
 
 

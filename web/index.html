@@ -80,6 +80,10 @@
   }
   .seg button.on { background: var(--ink); color: var(--card); }
 
+  .benchline { font-size: 12.5px; color: var(--muted); margin-top: 8px;
+               font-variant-numeric: tabular-nums; }
+  .benchline b { color: var(--clay-dark); font-weight: 600; }
+
   .thresh { display: flex; align-items: center; gap: 10px; height: 36px; }
   input[type=range] { accent-color: var(--clay); width: 130px; }
   #tval { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px;
@@ -150,6 +154,7 @@
       <div class="field">
         <label>Model</label>
         <div class="seg" id="seg"></div>
+        <div class="benchline" id="bench"></div>
       </div>
       <div class="field">
         <label>Threshold</label>
@@ -193,9 +198,17 @@ const fileIn = Object.assign(document.createElement('input'),
 const go = document.getElementById('go');
 const status = document.getElementById('status');
 const seg = document.getElementById('seg');
-let file = null, model = 'unetpp', map = null, layer = null;
+let file = null, model = 'unetpp', map = null, layer = null, metrics = {};
+
+function showBench() {
+  const m = metrics[model];
+  document.getElementById('bench').innerHTML = m
+    ? `benchmark on 441 held-out test tiles: IoU <b>${m.test_iou.toFixed(3)}</b> · F₁ <b>${m.test_f1.toFixed(3)}</b>`
+    : '';
+}
 
 fetch('/api/models').then(r => r.json()).then(d => {
+  metrics = d.metrics || {};
   for (const m of d.models) {
     const b = document.createElement('button');
     b.textContent = NAMES[m] || m;
@@ -204,9 +217,11 @@ fetch('/api/models').then(r => r.json()).then(d => {
     b.onclick = () => {
       model = m;
       seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.m === m));
+      showBench();
     };
     seg.appendChild(b);
   }
+  showBench();
 });
 
 const thresh = document.getElementById('thresh');
@@ -244,6 +259,8 @@ go.onclick = async () => {
       `<span class="chip"><b>${NAMES[d.model] || d.model}</b></span>` +
       `<span class="chip"><b>${(d.road_fraction * 100).toFixed(1)}%</b>&nbsp;road pixels</span>` +
       `<span class="chip">${secs}s on-device</span>` +
+      (d.accuracy ? `<span class="chip">IoU vs ground truth <b>${d.accuracy.iou.toFixed(3)}</b></span>` +
+                    `<span class="chip">F₁ <b>${d.accuracy.f1.toFixed(3)}</b></span>` : '') +
       (d.bounds_wgs84 ? `<span class="chip">georeferenced ✓</span>` : '');
     document.getElementById('results').style.display = 'block';
     status.textContent = '';
