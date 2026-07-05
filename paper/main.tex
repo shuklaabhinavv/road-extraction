@@ -367,6 +367,57 @@ both the imagery-derived annotation and the prediction, not by model failure.
 By this measure, the automatically extracted, geo-referenced network is as
 consistent with OSM as the manual annotation it was trained on.
 
+\subsection{Zero-Shot Generalization to Unseen Regions}
+To probe geographic transfer, all four models were evaluated \emph{without any
+retraining} on 362 tiles from the DeepGlobe road extraction dataset
+\cite{demir2018deepglobe}, whose imagery covers India, Indonesia, and Thailand.
+DeepGlobe's 0.5\,m/px images were downsampled $2\times$ to match the 1\,m/px
+training resolution. Table~\ref{tab:deepglobe} reports the results.
+
+\begin{table}[t]
+\caption{Zero-Shot Transfer to DeepGlobe (362 tiles, no retraining).}
+\label{tab:deepglobe}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Model & IoU & $F_1$ & Prec. & Rec. \\
+\midrule
+LinkNet      & \textbf{0.159} & \textbf{0.275} & 0.782 & \textbf{0.167} \\
+DeepLabV3+   & 0.134 & 0.236 & 0.559 & 0.150 \\
+U-Net++      & 0.125 & 0.222 & 0.829 & 0.128 \\
+U-Net        & 0.117 & 0.210 & 0.828 & 0.120 \\
+\midrule
+Ensemble ($\times$4) & 0.120 & 0.214 & \textbf{0.858} & 0.123 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two findings stand out. First, absolute performance drops sharply
+(IoU $0.65 \rightarrow 0.12$--$0.16$): the domain gap---different sensor,
+geography, and above all road \emph{types}, with unpaved rural roads dominating
+DeepGlobe---makes zero-shot transcontinental mapping impractical, motivating
+region-specific fine-tuning. Second, and more interesting, \textbf{the
+architecture ranking inverts under domain shift}: the in-domain winner
+(U-Net++) transfers worst, while LinkNet---third at home---transfers best,
+followed by DeepLabV3+. Under an identical training protocol this pattern
+suggests that higher-capacity decoders fit domain-specific appearance cues
+more tightly, whereas lighter decoders and atrous context aggregation retain
+more transferable representations. Notably, precision remains high
+($0.56$--$0.86$) while recall collapses: on unfamiliar imagery the models
+rarely hallucinate roads, they simply detect only the subset that resembles
+their training distribution (Fig.~\ref{fig:deepglobe}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/deepglobe_zeroshot.png}
+\caption{Zero-shot predictions on DeepGlobe imagery (India/Indonesia/Thailand).
+Paved, Massachusetts-like roads are detected; unpaved rural roads are largely
+missed---high precision, low recall.}
+\label{fig:deepglobe}
+\end{figure}
+
 \subsection{Limitations}
 Three limitations qualify these results. First, each architecture was trained
 once with a fixed seed; given the narrow accuracy band, run-to-run variance
@@ -437,6 +488,9 @@ vol. 117, pp. 11--28, 2016.
 \bibitem{zhu2017deep} X. X. Zhu \emph{et al.}, ``Deep learning in remote
 sensing: A comprehensive review and list of resources,'' \emph{IEEE Geosci.
 Remote Sens. Mag.}, vol. 5, no. 4, pp. 8--36, 2017.
+\bibitem{demir2018deepglobe} I. Demir \emph{et al.}, ``DeepGlobe 2018: A
+challenge to parse the Earth through satellite images,'' in \emph{Proc. IEEE
+CVPR Workshops}, 2018, pp. 172--181.
 \end{thebibliography}
 
 \end{document}
