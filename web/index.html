@@ -5,141 +5,261 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>roadx — road extraction from aerial imagery</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1115; --card: #181b22; --border: #2a2f3a;
-    --text: #e8eaf0; --muted: #9aa3b2; --accent: #ff4d4d; --accent2: #4d9fff;
+    --paper: #F5F3EC;
+    --card: #FDFCF8;
+    --ink: #1F1E1B;
+    --muted: #6E6A60;
+    --line: #E4E0D3;
+    --line-strong: #D3CEBE;
+    --clay: #C15F3C;
+    --clay-dark: #A84F2E;
+    --wash: #EFEBDF;
+    --radius: 16px;
   }
   * { box-sizing: border-box; margin: 0; }
-  body { background: var(--bg); color: var(--text);
-         font: 15px/1.6 -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width: 1060px; margin: 0 auto; padding: 32px 20px 60px; }
-  h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.3px; }
-  h1 .dot { color: var(--accent); }
-  .sub { color: var(--muted); margin: 6px 0 26px; }
-  .panel { background: var(--card); border: 1px solid var(--border);
-           border-radius: 14px; padding: 20px; }
-  .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  #drop { border: 2px dashed var(--border); border-radius: 12px; padding: 34px;
-          text-align: center; color: var(--muted); cursor: pointer;
-          transition: border-color .15s, background .15s; flex: 1 1 100%; }
-  #drop.hover { border-color: var(--accent2); background: #1b2029; }
-  #drop strong { color: var(--text); }
-  select, button {
-    background: #12151c; color: var(--text); border: 1px solid var(--border);
-    border-radius: 9px; padding: 9px 14px; font-size: 14px;
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 16px/1.65 "Inter", -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  button.go { background: var(--accent); border-color: var(--accent);
-              font-weight: 600; cursor: pointer; padding: 9px 22px; }
-  button.go:disabled { opacity: .45; cursor: default; }
-  .stat { color: var(--muted); font-size: 13px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
-  .grid figure { background: var(--card); border: 1px solid var(--border);
-                 border-radius: 14px; padding: 10px; }
-  .grid img { width: 100%; border-radius: 8px; display: block; }
-  figcaption { font-size: 13px; color: var(--muted); padding: 8px 4px 2px; }
-  #map { height: 460px; border-radius: 14px; border: 1px solid var(--border);
-         margin-top: 14px; display: none; }
-  #spin { display: none; color: var(--muted); }
-  #spin.on { display: inline; }
-  .err { color: #ff7a7a; }
-  footer { color: var(--muted); font-size: 12.5px; margin-top: 26px; }
-  a { color: var(--accent2); text-decoration: none; }
-  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 56px 24px 72px; }
+
+  .brand { font: 600 15px/1 "Inter", sans-serif; letter-spacing: .02em;
+           color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .brand::before { content: ""; width: 9px; height: 9px; border-radius: 50%;
+                   background: var(--clay); display: inline-block; }
+
+  h1 {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: clamp(34px, 5vw, 48px); font-weight: 600;
+    line-height: 1.12; letter-spacing: -0.015em;
+    margin: 26px 0 14px; max-width: 17ch;
+  }
+  h1 em { font-style: italic; color: var(--clay); }
+  .lede { color: var(--muted); max-width: 58ch; font-size: 17px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: 0 1px 2px rgba(31,30,27,.04);
+  }
+
+  .studio { margin-top: 40px; padding: 28px; }
+
+  #drop {
+    border: 1.5px dashed var(--line-strong); border-radius: 12px;
+    padding: 44px 24px; text-align: center; cursor: pointer;
+    color: var(--muted); background: var(--wash);
+    transition: border-color .15s ease, background .15s ease;
+  }
+  #drop:hover, #drop.hover { border-color: var(--clay); background: #F3EDE2; }
+  #drop .big { font-family: "Source Serif 4", Georgia, serif; font-size: 19px;
+               color: var(--ink); margin-bottom: 4px; }
+  #drop .small { font-size: 13.5px; }
+  #fname { margin-top: 10px; font-size: 13.5px; color: var(--clay-dark);
+           font-weight: 500; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-end;
+              margin-top: 24px; }
+  .field label { display: block; font-size: 12px; font-weight: 600;
+                 letter-spacing: .06em; text-transform: uppercase;
+                 color: var(--muted); margin-bottom: 8px; }
+
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--wash);
+         border: 1px solid var(--line); border-radius: 22px; padding: 3px; }
+  .seg button {
+    border: 0; background: transparent; color: var(--muted);
+    font: 500 14px "Inter", sans-serif; padding: 7px 16px;
+    border-radius: 999px; cursor: pointer; transition: all .12s ease;
+    white-space: nowrap;
+  }
+  .seg button.on { background: var(--ink); color: var(--card); }
+
+  .thresh { display: flex; align-items: center; gap: 10px; height: 36px; }
+  input[type=range] { accent-color: var(--clay); width: 130px; }
+  #tval { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px;
+          width: 30px; }
+
+  .go {
+    margin-left: auto; border: 0; cursor: pointer;
+    background: var(--clay); color: #fff;
+    font: 600 15px "Inter", sans-serif; padding: 12px 28px;
+    border-radius: 999px; transition: background .12s ease, transform .06s ease;
+  }
+  .go:hover:not(:disabled) { background: var(--clay-dark); }
+  .go:active:not(:disabled) { transform: scale(.98); }
+  .go:disabled { opacity: .4; cursor: default; }
+
+  .status { margin-top: 16px; font-size: 14px; color: var(--muted);
+            min-height: 22px; }
+  .status .err { color: #A8342A; }
+  .pulse { display: inline-block; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0 14px; }
+  .chip { background: var(--wash); border: 1px solid var(--line);
+          border-radius: 999px; padding: 6px 14px; font-size: 13.5px;
+          color: var(--ink); }
+  .chip b { font-weight: 600; }
+
+  .results { display: none; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid figure { overflow: hidden; }
+  .grid img { width: 100%; display: block; }
+  figcaption { font-size: 13.5px; color: var(--muted); padding: 12px 16px;
+               border-top: 1px solid var(--line); }
+
+  .map-card { margin-top: 18px; overflow: hidden; display: none; }
+  #map { height: 480px; }
+  .map-card figcaption { background: var(--card); }
+
+  .rule { border: 0; border-top: 1px solid var(--line); margin: 48px 0 20px; }
+  footer { color: var(--muted); font-size: 13.5px; display: flex;
+           justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  footer a { color: var(--clay-dark); text-decoration: none; border-bottom: 1px solid transparent; }
+  footer a:hover { border-color: var(--clay-dark); }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+    .go { margin-left: 0; width: 100%; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>roadx<span class="dot">.</span> road extraction from aerial imagery</h1>
-  <p class="sub">Four segmentation models trained on the Massachusetts Roads Dataset.
-     Upload an aerial image (GeoTIFF gets you a live map); roads come back in red.</p>
+  <div class="brand">roadx</div>
+  <h1>Roads, extracted <em>from the sky</em>.</h1>
+  <p class="lede">Four deep segmentation models — U-Net, U-Net++, DeepLabV3+ and
+    LinkNet — trained identically on the Massachusetts Roads Dataset. Drop in an
+    aerial image; if it is a GeoTIFF, the detected roads are placed on a live map
+    at their true coordinates.</p>
 
-  <div class="panel">
-    <div class="row">
-      <div id="drop"><strong>Drop an aerial image here</strong> or click to browse
-        <div class="stat">.tif / .tiff / .png / .jpg — up to 3000×3000 px</div>
-        <div class="stat" id="fname"></div>
-      </div>
-      <label>Model
-        <select id="model"></select>
-      </label>
-      <label>Threshold
-        <select id="thresh">
-          <option>0.3</option><option selected>0.5</option><option>0.7</option>
-        </select>
-      </label>
-      <button class="go" id="go" disabled>Extract roads</button>
-      <span id="spin">running model…</span>
-      <span class="stat" id="result"></span>
+  <div class="card studio">
+    <div id="drop">
+      <div class="big">Drop an aerial image</div>
+      <div class="small">or click to browse &nbsp;·&nbsp; .tif · .png · .jpg &nbsp;·&nbsp; up to 3000 × 3000 px</div>
+      <div id="fname"></div>
     </div>
+
+    <div class="controls">
+      <div class="field">
+        <label>Model</label>
+        <div class="seg" id="seg"></div>
+      </div>
+      <div class="field">
+        <label>Threshold</label>
+        <div class="thresh">
+          <input type="range" id="thresh" min="0.2" max="0.8" step="0.05" value="0.5">
+          <span id="tval">0.50</span>
+        </div>
+      </div>
+      <button class="go" id="go" disabled>Extract roads</button>
+    </div>
+    <div class="status" id="status"></div>
   </div>
 
-  <div class="grid" id="out" style="display:none">
-    <figure><img id="overlay"><figcaption>Prediction overlay</figcaption></figure>
-    <figure><img id="mask"><figcaption>Binary road mask</figcaption></figure>
-  </div>
-  <div id="map"></div>
+  <section class="results" id="results">
+    <div class="chips" id="chips"></div>
+    <div class="grid">
+      <figure class="card"><img id="overlay" alt="prediction overlay">
+        <figcaption>Prediction overlay — detected roads in red</figcaption></figure>
+      <figure class="card"><img id="mask" alt="binary road mask">
+        <figcaption>Binary road mask</figcaption></figure>
+    </div>
+    <figure class="card map-card" id="mapcard">
+      <div id="map"></div>
+      <figcaption>Extracted network on OpenStreetMap — placed by the image's own geo-metadata</figcaption>
+    </figure>
+  </section>
 
-  <footer>roadx — comparative study of U-Net, U-Net++, DeepLabV3+ and LinkNet ·
-    <a href="https://github.com/shuklaabhinavv/road-extraction">source</a></footer>
+  <hr class="rule">
+  <footer>
+    <span>roadx — a comparative study of segmentation architectures for road extraction</span>
+    <a href="https://github.com/shuklaabhinavv/road-extraction">source on GitHub</a>
+  </footer>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+const NAMES = {unet: "U-Net", unetpp: "U-Net++", deeplabv3plus: "DeepLabV3+", linknet: "LinkNet"};
 const drop = document.getElementById('drop');
-const fileIn = Object.assign(document.createElement('input'), {type: 'file', accept: '.tif,.tiff,.png,.jpg,.jpeg'});
+const fileIn = Object.assign(document.createElement('input'),
+  {type: 'file', accept: '.tif,.tiff,.png,.jpg,.jpeg'});
 const go = document.getElementById('go');
-const spin = document.getElementById('spin');
-const result = document.getElementById('result');
-let file = null, map = null, layer = null;
+const status = document.getElementById('status');
+const seg = document.getElementById('seg');
+let file = null, model = 'unetpp', map = null, layer = null;
 
 fetch('/api/models').then(r => r.json()).then(d => {
-  const sel = document.getElementById('model');
   for (const m of d.models) {
-    const o = document.createElement('option');
-    o.value = m; o.textContent = m;
-    if (m === 'unetpp') o.selected = true;
-    sel.appendChild(o);
+    const b = document.createElement('button');
+    b.textContent = NAMES[m] || m;
+    b.dataset.m = m;
+    if (m === model) b.classList.add('on');
+    b.onclick = () => {
+      model = m;
+      seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.m === m));
+    };
+    seg.appendChild(b);
   }
 });
 
+const thresh = document.getElementById('thresh');
+thresh.oninput = () => document.getElementById('tval').textContent =
+  Number(thresh.value).toFixed(2);
+
 function setFile(f) {
   file = f;
-  document.getElementById('fname').textContent = f ? `selected: ${f.name}` : '';
+  document.getElementById('fname').textContent = f ? f.name : '';
   go.disabled = !f;
 }
 drop.onclick = () => fileIn.click();
 fileIn.onchange = () => setFile(fileIn.files[0]);
 drop.ondragover = e => { e.preventDefault(); drop.classList.add('hover'); };
 drop.ondragleave = () => drop.classList.remove('hover');
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hover'); setFile(e.dataTransfer.files[0]); };
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hover');
+                     setFile(e.dataTransfer.files[0]); };
 
 go.onclick = async () => {
   const fd = new FormData();
   fd.append('file', file);
-  fd.append('model', document.getElementById('model').value);
-  fd.append('threshold', document.getElementById('thresh').value);
-  go.disabled = true; spin.classList.add('on'); result.textContent = '';
+  fd.append('model', model);
+  fd.append('threshold', thresh.value);
+  go.disabled = true;
+  status.innerHTML = '<span class="pulse">Running ' + (NAMES[model] || model) + '…</span>';
+  const t0 = performance.now();
   try {
     const r = await fetch('/api/predict', {method: 'POST', body: fd});
     const d = await r.json();
     if (d.error) throw new Error(d.error);
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
     document.getElementById('overlay').src = 'data:image/png;base64,' + d.overlay_png;
     document.getElementById('mask').src = 'data:image/png;base64,' + d.mask_png;
-    document.getElementById('out').style.display = 'grid';
-    result.textContent = `${(d.road_fraction * 100).toFixed(1)}% road pixels (${d.model})`;
+    document.getElementById('chips').innerHTML =
+      `<span class="chip"><b>${NAMES[d.model] || d.model}</b></span>` +
+      `<span class="chip"><b>${(d.road_fraction * 100).toFixed(1)}%</b>&nbsp;road pixels</span>` +
+      `<span class="chip">${secs}s on-device</span>` +
+      (d.bounds_wgs84 ? `<span class="chip">georeferenced ✓</span>` : '');
+    document.getElementById('results').style.display = 'block';
+    status.textContent = '';
     showMap(d);
+    document.getElementById('results').scrollIntoView({behavior: 'smooth'});
   } catch (err) {
-    result.innerHTML = `<span class="err">${err.message}</span>`;
+    status.innerHTML = `<span class="err">${err.message}</span>`;
   } finally {
-    go.disabled = false; spin.classList.remove('on');
+    go.disabled = false;
   }
 };
 
 function showMap(d) {
-  const el = document.getElementById('map');
-  if (!d.bounds_wgs84) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
+  const cardEl = document.getElementById('mapcard');
+  if (!d.bounds_wgs84) { cardEl.style.display = 'none'; return; }
+  cardEl.style.display = 'block';
   const [w, s, e, n] = d.bounds_wgs84;
   if (!map) {
     map = L.map('map');
@@ -147,9 +267,10 @@ function showMap(d) {
       {attribution: '&copy; OpenStreetMap contributors'}).addTo(map);
   }
   if (layer) map.removeLayer(layer);
-  layer = L.geoJSON(d.geojson, {style: {color: '#ff4d4d', weight: 1, fillOpacity: .5}}).addTo(map);
+  layer = L.geoJSON(d.geojson,
+    {style: {color: '#C15F3C', weight: 1.5, fillColor: '#C15F3C', fillOpacity: .45}}).addTo(map);
   map.fitBounds([[s, w], [n, e]]);
-  setTimeout(() => map.invalidateSize(), 100);
+  setTimeout(() => map.invalidateSize(), 120);
 }
 </script>
 </body>
