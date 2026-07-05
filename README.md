@@ -59,13 +59,26 @@ this repo's sources by `scripts/make_notebooks.py` — never edit them by hand):
 Colab variants (`colab_*.ipynb`) exist as a fallback; they stage data through
 Google Drive and train one model per session.
 
+
+## Web demo
+
+```bash
+python -m roadx.app   # http://localhost:8501
+```
+
+Upload an aerial image, pick any of the four trained models, and get the road
+mask + red overlay. GeoTIFF uploads additionally render the extracted roads as
+vectors on an interactive OpenStreetMap view (real lat/lon via the embedded
+geo-metadata). Requires trained checkpoints in `runs/<model>/best.pt`.
+
 ## Roadmap
 
 - [x] Data pipeline (download, tile, augment)
 - [x] Training harness — 4 architectures, identical recipe
 - [x] Local end-to-end sanity run (Apple Silicon MPS)
 - [x] Kaggle/Colab notebooks for full training
-- [ ] Full training runs (4 models, 30 epochs, Kaggle P100)
-- [ ] Evaluation: comparison table + qualitative figures
-- [ ] Geo-referencing: mask pixels → lat/lon → GeoJSON, OSM validation
-- [ ] IEEE conference paper (LaTeX)
+- [x] Full training runs (4 models, 30 epochs, Kaggle T4 x2)
+- [x] Evaluation: comparison table + qualitative figures
+- [x] Geo-referencing: mask pixels → lat/lon → GeoJSON, OSM validation
+- [x] IEEE conference paper (LaTeX draft in paper/)
+- [x] Web demo (FastAPI + Leaflet)

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "roadx-web",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["-m", "roadx.app"],
+      "port": 8501
+    }
+  ]
+}
