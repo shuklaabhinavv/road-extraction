@@ -339,6 +339,110 @@ def colab_train_notebook() -> dict:
     return notebook(cells)
 
 
+HF_SPACE = "shuklaabhinavv/roadx"
+GITHUB = "https://github.com/shuklaabhinavv/road-extraction"
+DEMO = "https://huggingface.co/spaces/shuklaabhinavv/roadx"
+
+
+def showcase_notebook() -> dict:
+    """Public Kaggle showcase: results summary + zero-setup inference demo."""
+    cells = [
+        md(
+            "# Road Extraction from Aerial Imagery — a 4-Model Comparative Study\n\n"
+            "Which segmentation architecture is best for extracting road networks from\n"
+            "aerial imagery? This project trained **U-Net, U-Net++, DeepLabV3+ and\n"
+            "LinkNet** under a *strictly identical* protocol (same ResNet-34 encoder,\n"
+            "loss, optimizer, schedule, augmentation, batch size and data) on the\n"
+            "Massachusetts Roads Dataset, so measured differences come from the\n"
+            "architecture alone.\n\n"
+            "## Test-set results (441 held-out tiles)\n\n"
+            "| Model | IoU | F1 | Precision | Recall | Params (M) | ms/tile |\n"
+            "|---|---|---|---|---|---|---|\n"
+            "| **U-Net++** | **0.654** | **0.791** | 0.808 | 0.774 | 26.1 | 199.8 |\n"
+            "| U-Net | 0.650 | 0.788 | 0.807 | 0.770 | 24.4 | 110.5 |\n"
+            "| LinkNet | 0.649 | 0.787 | 0.803 | 0.771 | **21.8** | **105.0** |\n"
+            "| DeepLabV3+ | 0.642 | 0.782 | 0.798 | 0.766 | 22.4 | 117.5 |\n"
+            "| Ensemble (x4) | 0.656 | 0.792 | 0.814 | 0.772 | 94.7 | 488.3 |\n\n"
+            "**Highlights**\n"
+            "- U-Net++ wins on accuracy; LinkNet delivers 99% of that accuracy at half\n"
+            "  the inference cost.\n"
+            "- Zero-shot transfer to DeepGlobe (India/Indonesia/Thailand) *inverts* the\n"
+            "  ranking: LinkNet generalizes best (IoU 0.159), U-Net++ worst (0.125).\n"
+            "- Geo-referenced output agrees with OpenStreetMap as well as the human\n"
+            "  ground truth does (correctness 0.985 vs 0.979).\n\n"
+            f"🔗 [Source code]({GITHUB}) · [Live demo — extract roads anywhere on Earth]({DEMO})\n\n"
+            "---\n"
+            "Below: load the trained weights and run road extraction on test images,\n"
+            "end-to-end, right here. *(Attach the `massachusetts-roads-dataset` by\n"
+            "balraj98 as input, enable Internet, then Run All — no GPU needed.)*"
+        ),
+        code("%pip install -q segmentation-models-pytorch huggingface_hub\n"),
+        code(SETUP),
+        writefile_cell("roadx/data/dataset.py", SRC / "data" / "dataset.py"),
+        writefile_cell("roadx/models.py", SRC / "models.py"),
+        writefile_cell("roadx/predict.py", SRC / "predict.py"),
+        code(
+            "# trained checkpoints are hosted in the project's Hugging Face Space\n"
+            "from huggingface_hub import hf_hub_download\n"
+            "\n"
+            "CKPTS = {}\n"
+            "for name in ('unetpp', 'linknet'):\n"
+            f"    CKPTS[name] = hf_hub_download('{HF_SPACE}', f'runs/{{name}}/best.pt', repo_type='space')\n"
+            "    print('downloaded', name)\n"
+        ),
+        code(
+            "import os\n"
+            "import numpy as np\n"
+            "import torch\n"
+            "from PIL import Image\n"
+            "from roadx.models import build_model, pick_device\n"
+            "from roadx.predict import predict_image, overlay\n"
+            "\n"
+            "device = pick_device()\n"
+            "models = {}\n"
+            "for name, path in CKPTS.items():\n"
+            "    ckpt = torch.load(path, map_location='cpu', weights_only=False)\n"
+            "    m = build_model(ckpt['model'], ckpt['encoder'], encoder_weights=None)\n"
+            "    m.load_state_dict(ckpt['state_dict'])\n"
+            "    m.to(device).eval()\n"
+            "    models[name] = m\n"
+            "print('loaded', list(models), 'on', device.type)\n"
+        ),
+        code(
+            "# find test images in the attached public dataset (any folder layout)\n"
+            "test_imgs = []\n"
+            "for dirpath, _, files in os.walk('/kaggle/input'):\n"
+            "    if dirpath.endswith(('test', 'test_sat')) or '/test' in dirpath:\n"
+            "        test_imgs += [os.path.join(dirpath, f) for f in files\n"
+            "                      if f.endswith(('.tiff', '.tif', '.png', '.jpg')) and 'label' not in dirpath]\n"
+            "test_imgs = sorted(set(test_imgs))[:3]\n"
+            "assert test_imgs, 'attach the massachusetts-roads-dataset (balraj98) as input'\n"
+            "print(len(test_imgs), 'test images selected')\n"
+        ),
+        code(
+            "import matplotlib.pyplot as plt\n"
+            "\n"
+            "for path in test_imgs:\n"
+            "    img = np.asarray(Image.open(path).convert('RGB'))\n"
+            "    fig, axes = plt.subplots(1, 1 + len(models), figsize=(5.5 * (1 + len(models)), 5.5))\n"
+            "    axes[0].imshow(img); axes[0].set_title('input'); axes[0].axis('off')\n"
+            "    for ax, (name, m) in zip(axes[1:], models.items()):\n"
+            "        mask = predict_image(m, img, device) > 0.5\n"
+            "        ax.imshow(overlay(img, mask))\n"
+            "        ax.set_title(f'{name} — {mask.mean():.1%} road'); ax.axis('off')\n"
+            "    plt.tight_layout(); plt.show()\n"
+        ),
+        md(
+            "## How this was built\n"
+            "The full pipeline (data prep, identical-protocol training on Kaggle T4s,\n"
+            "evaluation, geo-referencing with OpenStreetMap validation, and the web app)\n"
+            f"is open source: **[{GITHUB.split('//')[1]}]({GITHUB})**.\n\n"
+            f"Try the interactive demo — extract roads over your own city: **[{DEMO.split('//')[1]}]({DEMO})**"
+        ),
+    ]
+    return notebook(cells)
+
+
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     for name, nb in (
@@ -346,6 +450,7 @@ def main() -> None:
         ("colab_2_train.ipynb", colab_train_notebook()),
         ("kaggle_1_prepare_data.ipynb", prepare_notebook()),
         ("kaggle_2_train.ipynb", train_notebook()),
+        ("kaggle_showcase.ipynb", showcase_notebook()),
     ):
         (OUT / name).write_text(json.dumps(nb, indent=1))
         print(f"wrote notebooks/{name}")
