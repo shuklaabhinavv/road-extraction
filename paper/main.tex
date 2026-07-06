@@ -12,9 +12,20 @@
 
 \begin{document}
 
+% C2I6-2026 uses double-blind review: keep \anontrue for the submission PDF,
+% switch to \anonfalse for the camera-ready after acceptance.
+\newif\ifanon
+\anontrue
+
 \title{A Comparative Study of Deep Semantic Segmentation Architectures for
 Geo-Referenced Road Extraction from Aerial Imagery}
 
+\ifanon
+\author{
+\IEEEauthorblockN{Anonymous Authors}
+\IEEEauthorblockA{Submitted to C2I6-2026 for double-blind review}
+}
+\else
 \author{
 \IEEEauthorblockN{Abhinav Shukla}
 \IEEEauthorblockA{\textit{Department of Computer Science and Engineering}\\
@@ -28,6 +39,7 @@ abhinav@example.com}
 Noida, India \\
 guide@example.com}
 }
+\fi
 
 \maketitle
 
@@ -58,21 +70,20 @@ geo-referencing, OpenStreetMap
 \end{IEEEkeywords}
 
 \section{Introduction}
-The continuous growth of urban environments and transportation networks has
-significantly increased the need for accurate, reliable, and frequently updated
-road information. Road networks form the backbone of modern society, supporting
-daily commuting, economic activity, emergency services, and large-scale
-infrastructure planning. As cities expand and new routes are developed,
-maintaining precise road data becomes both challenging and essential for
-effective geographic management.
+Road networks underpin navigation, logistics, emergency response, and urban
+planning, yet the geographic databases that describe them age quickly: new
+construction, informal settlements, and disasters reshape road layouts faster
+than surveying and manual digitization can record them. Keeping road maps
+current at scale has therefore become a bottleneck for a wide range of
+location-dependent services.
 
-Satellite and aerial imagery provide comprehensive visual coverage across vast
-geographic regions and have become a primary source of large-scale geographic
-information for infrastructure monitoring and mapping
-\cite{cheng2016survey,zhu2017deep}. Despite the availability of such rich data,
-extracting meaningful information from imagery remains complex: traditional
-manual digitization requires substantial human effort, consumes considerable
-time, and cannot keep pace with rapidly changing landscapes.
+Satellite and aerial imagery offer a natural remedy, providing frequent,
+wide-area observations from which road geometry can in principle be recovered
+\cite{cheng2016survey,zhu2017deep}. In practice, however, converting pixels
+into map-ready road data is difficult: manual digitization of imagery is
+labor-intensive and slow, while roads themselves are thin, kilometer-long
+structures that are easily confused with rooftops, rail corridors, and field
+boundaries, and are frequently interrupted by shadow and tree cover.
 
 Deep learning has opened new possibilities for automating the interpretation
 of remote sensing data. Convolutional segmentation networks recognize intricate
