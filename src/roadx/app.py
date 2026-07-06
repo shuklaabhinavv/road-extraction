@@ -31,7 +31,11 @@ WEB = ROOT / "web"
 RUNS = ROOT / "runs"
 DATA = ROOT / "data" / "raw"
 RESULTS = ROOT / "results" / "comparison.csv"
+import os
+
 MAX_SIDE = 3000  # guardrail for huge uploads
+# smaller anywhere-mode regions on CPU deployments (free hosting)
+MAX_TILES_ENV = int(os.environ.get("ROADX_MAX_TILES", "0"))
 
 # friendly demo filenames -> dataset stems (for ground-truth lookup)
 STEM_ALIASES = {
@@ -164,7 +168,7 @@ TILE_URL = ("https://server.arcgisonline.com/ArcGIS/rest/services/"
             "World_Imagery/MapServer/tile/{z}/{y}/{x}")
 TILE = 256
 MERC = 20037508.342789244
-MAX_TILES = 144  # 12x12 tiles = ~3072 px per side
+MAX_TILES = MAX_TILES_ENV or 144  # 12x12 tiles = ~3072 px per side
 
 
 class Region(BaseModel):
@@ -252,7 +256,8 @@ def extract_region(req: Region):
 
 
 def main() -> None:
-    uvicorn.run(app, host="127.0.0.1", port=8501)
+    uvicorn.run(app, host=os.environ.get("ROADX_HOST", "127.0.0.1"),
+                port=int(os.environ.get("PORT", "8501")))
 
 
 if __name__ == "__main__":
