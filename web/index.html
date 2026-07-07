@@ -165,7 +165,9 @@
       <div id="bigmap"></div>
       <div class="maphint">Zoom to street level (the button enables when the view is
         small enough), then extract. Roads are detected on live Esri satellite imagery
-        at ~1 m/pixel — the resolution the models were trained on.</div>
+        at ~1 m/pixel. Accuracy is highest in North America / Europe (the training
+        domain); elsewhere expect partial detections — an effect quantified in the
+        accompanying paper.</div>
     </div>
 
     <div id="uploadmode" style="display:none">
@@ -312,7 +314,15 @@ async function extractRegion() {
     $('imggrid').style.display = 'none';
     $('mapcard').style.display = 'none';
     $('results').style.display = 'block';
-    $('status').textContent = 'Roads drawn on the map above. Toggle to “Street map” to compare against OSM.';
+    if (d.road_fraction < 0.005) {
+      $('status').innerHTML =
+        'Few or no roads found here. The models were trained on Massachusetts imagery — ' +
+        'on other regions (different road materials and urban fabric) recall drops sharply; ' +
+        'our paper measures exactly this domain shift. Tips: <b>LinkNet</b> transfers best — ' +
+        'try it with threshold <b>0.2</b>, or test a North American / European city to see full accuracy.';
+    } else {
+      $('status').textContent = 'Roads drawn on the map above. Toggle to “Street map” to compare against OSM.';
+    }
   } catch (err) {
     $('status').innerHTML = `<span class="err">${err.message}</span>`;
   } finally {
