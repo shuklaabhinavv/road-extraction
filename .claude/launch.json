@@ -3,8 +3,11 @@
   "configurations": [
     {
       "name": "roadx-web",
-      "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["-m", "roadx.app"],
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "cd \"$HOME/Desktop/projects/roadx project\" && PYTHONPATH=src ROADX_MAX_TILES=36 PORT=8501 .venv/bin/python -m roadx.app"
+      ],
       "port": 8501
     }
   ]

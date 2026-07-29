@@ -129,7 +129,8 @@ def models():
                     "test_iou": round(float(row["iou"]), 3),
                     "test_f1": round(float(row["f1"]), 3),
                 }
-    return {"models": available, "device": device.type, "metrics": metrics}
+    return {"models": available, "device": device.type, "metrics": metrics,
+            "max_tiles": MAX_TILES}
 
 
 @app.post("/api/predict")
@@ -250,7 +251,6 @@ def extract_region(req: Region):
         "resolution_m": round(res, 2),
         "size_px": [img.shape[1], img.shape[0]],
         "road_fraction": float(mask.mean()),
-        "overlay_png": png_b64(overlay(img, mask)),
         "geojson": gj,
     }
 
